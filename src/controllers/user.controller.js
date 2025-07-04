@@ -193,6 +193,62 @@ const refreshAccessToken = asyncHandler(async (req, res) =>{
         throw new ApiError(401, "Unauthorized, please login again")
     }
 })
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(400, "Old password and new password are required");
+    }
+    const user=await User.findById(req.user?.id)
+    const isPassword=await user.isPasswordCorrect(oldPassword)
+    if(!isPassword){
+        throw new ApiError(401, "Old password is incorrect")
+    }
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });  
+    return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully"));
+    })
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(200,req.user, "Current user fetched successfully")
+
+
+})
+
+const updateAccountDetails= asyncHandler(async (req, res) => {
+    const { fullName, email, username } = req.body;
+    if ([fullName, email, username].some((field) => field?.trim() === "")) {
+        throw new ApiError(400, "All fields are required");
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    user.fullName = fullName;
+    user.email = email;
+    user.username = username.toLowerCase();
+    await user.save();
+    return res.status(200).json(new ApiResponse(200, user, "User details updated successfully"));
+});
+
+const updateAvatar = asyncHandler(async (req, res) => {
+    const avatarLocalPath = req.file?.path; 
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is required");
+    }
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    if (!avatar) {
+        throw new ApiError(400, "Avatar upload failed");
+    }
+    const user= await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    user.avatar = avatar.url;
+    await user.save({ validateBeforeSave: false });
+    return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully"));
+});
+
 export {
-    registerUser,loginUser,logoutUser,refreshAccessToken
+    registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAvatar,updateAccountDetails
 }
